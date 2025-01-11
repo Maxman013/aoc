@@ -2,7 +2,7 @@ const fs = require("fs");
 let input = fs.readFileSync("5ex.txt", {encoding: "utf8"}).split('\n');
 let seedsInstr = input[0].split(": ")[1].split(' ');
 let intervals = [];
-let seeds = [];
+let mappings = [];
 
 // populate seeds intervals
 for (i = 0; i < seedsInstr.length; i++) {
@@ -11,7 +11,25 @@ for (i = 0; i < seedsInstr.length; i++) {
     intervals.push([start, start + range - 1]);
 }
 
-console.log(intervals);
+// sort intervals based on starting location
+intervals.sort((a, b) => a[0] - b[0]);
+
+let thisLevel = [];
+
+// parse maps, put into workable format
+for (i = 3; i < input.length; i++) {
+    // new level of maps
+    if (input[i] == "") {
+        // sort each line in the mapping by source
+        mappings.push(thisLevel.sort((a, b) => a[1] - b[1]));
+        thisLevel = [];
+        i++;
+    } else {
+        let line = input[i].split(' ').map(Number);
+        // reformat lines to be of the form [dest - source, source, source + range]
+        thisLevel.push([line[0] - line[1], line[1], line[1] + line[2] - 1]);
+    }
+}
 
 // the idea here is that the maps are just a piecewise linear function:
 // f(x) = {x + dest - source, if x in [source, source + range];
@@ -23,34 +41,89 @@ console.log(intervals);
 //         x, otherwise}
 // then f([50, 60]) = [f(50), f(60)] = [52, 62]
 // also f([95, 105]) = [f(95), f(100)] u [f(101), f(102)] u [f(103), f(105)] = [97, 102] u [1, 2] u [103, 105]
-// notice how we had to keep track of changepoints!
+// notice how we had to keep track of breakpoints!
 
+for (i = 0; i < mappings.length; i++) {
+    let level = mappings[i];
+    console.log(level);
 
-for (i = 3; i < input.length; i++) {
-    // new level of maps, set all to be unconverted
-    if (input[i] == "") {
-        for (j = 0; j < seeds.length; j++) {
-            if (seeds[j].substring(0, 1) == "a") {
-                seeds[j] = seeds[j].substring(1);
+    // first, we need to figure out breakpoints (or how many subintervals we need to split this into)
+    for (j = 0; j < intervals.length; j++) {
+        let interval = intervals[j];
+        for (k = 0; k < level.length; k++) {
+            if (interval[1] < level[k][1] || level[k][2] < interval[0]) {
+                console.log(interval + " empty " + [level[k][1],level[k][2]]);
+                // intersection is empty
+                continue;
             }
-        }
-        i++
-    } else {
-        let line = input[i].split(' ').map(Number);
-        for (j = 0; j < seeds.length; j++) {
-            if (seeds[j] >= line[1] && seeds[j] <= line[1] + line[2]) {
-                // dot means already converted, skip this one
-                seeds[j] = "a" + (line[0] + Number(seeds[j]) - line[1]);
+
+            // seed interval goes lower than map interval, so breakpoint is needed at map interval lower bound
+            if (interval[0] < level[k][1]) {
+                console.log(interval + " lower " + [level[k][1],level[k][2]]);
+
+                // create new seed interval
+                intervals.push([level[k][1], interval[1]]);
+                intervals.sort((a, b) => a[0] - b[0]);
+
+                console.log("breakpoint " + [interval[0], level[k][1]] +  " and " + [level[k][1], interval[1]]);
+
+                // update current seed interval
+                intervals[j][1] = level[k][1];
             }
+
+            // seed interval goes higher than map interval, so breakpoint is needed at map interval upper bound
+            if (level[k][2] < interval[1]) {
+
+                console.log(interval + " higher " + [level[k][1],level[k][2]]);
+                // create new seed interval
+                intervals.push([level[k][2] + 1, interval[1]]);
+                intervals.sort((a, b) => a[0] - b[0]);
+
+                console.log("breakpoint " + [interval[0], level[k][2]] +  " and " + [level[k][2] + 1, interval[1]]);
+
+                // update current seed interval
+                intervals[j][1] = level[k][2];
+            } 
         }
     }
-}
 
-// get rid of converted markers
-for (i = 0; i < seeds.length; i++) {
-    if (seeds[i].substring(0, 1) == "a") {
-        seeds[i] = seeds[i].substring(1);
+    console.log(intervals);
+
+    // now that we have all the subintervals we need, apply the mapping to it
+    for (j = 0; j < intervals.length; j++) {
+        for (k = 0; k < level.length; k++) {
+            // find the interval we are fully contained inside
+            if (intervals[j][1] < level[k][1] || level[k][2] < intervals[j][0]) {
+                console.log(intervals[j] + " empty " + [level[k][1],level[k][2]]);
+                // intersection is empty
+                continue;
+            }
+            
+            console.log(intervals[j] + " inside " + [level[k][1],level[k][2]]);
+
+            // apply the mapping
+            intervals[j][0] += level[k][0];
+            intervals[j][1] += level[k][0];
+
+            console.log("mapped to " + intervals[j]);
+            break;
+        }
     }
+
+    intervals.sort((a, b) => a[0] - b[0]);
+    console.log(intervals);
+
+    // finally, we can recombine any subintervals that are actually continguous
+    for (j = 0; j < intervals.length - 1; j++) {
+        if (intervals[j][1] == intervals[j + 1][0]) {
+            // recombine
+            intervals[j][1] = intervals[j + 1][1];
+            intervals.splice(j + 1, 1);
+            j--;
+        }
+    }
+    console.log("");
 }
 
-console.log(Math.min(...seeds));
+// output smallest element of smallest interval
+console.log(intervals[0][0]);
