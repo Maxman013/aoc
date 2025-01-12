@@ -32,11 +32,7 @@ console.log(lcmArr(steps));
 
 // Euclidean algorithm
 function gcd(a, b) {
-    if (b == 0) {
-        return a;
-    }
-
-    return gcd(b, a % b);
+    return b == 0 ? a : gcd(b, a % b);
 }
 
 // we assume a and b are not both zero
@@ -47,9 +43,5 @@ function lcm(a, b) {
 // to take the lcm of many numbers
 // we use the formula lcm(a, b, c) = lcm(a, lcm(b, c))
 function lcmArr(nums) {
-    if (nums.length == 1) {
-        return nums[0];
-    }
-
-    return lcm(nums[0], lcmArr(nums.splice(1)));
+    return nums.length == 1 ? nums[0] : lcm(nums[0], lcmArr(nums.splice(1)));
 }
