@@ -11,7 +11,7 @@ for (i = 0; i < input.length; i++) {
     let foldedSprings = [...springs];
     let foldedNums = [...nums];
 
-    for (j = 0; j < 3; j++) {
+    for (j = 0; j < 4; j++) {
         springs.push('?');
         springs = springs.concat(foldedSprings);
         nums = nums.concat(foldedNums);
@@ -21,10 +21,10 @@ for (i = 0; i < input.length; i++) {
 }
 
 let arrangements = 0;
+let lookupTable = {};
 for (i = 0; i < rows.length; i++) {
     let thisArrangement = fillRow(rows[i][0], rows[i][1]);
     arrangements += thisArrangement;
-    console.log(i, thisArrangement);
 }
 
 console.log(arrangements);
@@ -40,9 +40,10 @@ function fillRow(springs, nums) {
 
     // so this is a topic i've never heard about before - memoisation
     // basically we have a lookup table and if our exact situation has happened before, we can take a shortcut
-    // if () {
-
-    // }
+    let checkState = springs.join('') + "|" + nums.join(',');
+    if (lookupTable.hasOwnProperty(checkState)) {
+        return lookupTable[checkState];
+    }
 
     let count = 0;
 
@@ -64,19 +65,31 @@ function fillRow(springs, nums) {
             return 0;
         }
 
+        // keep old state for storage
+        let oldState = springs.join('') + "|" + nums.join(',');
+
         // remove the '#' and if we have just finished a string of '#', remove that string from nums
         springs.shift();
         if (nums.length > 0 && nums[0] == 0) {
             nums.shift();
         }
 
-        return count + fillRow(springs, nums);
+        count += fillRow(springs, nums);
+
+        lookupTable[oldState] = count;
+        return count;
     }
+
+    // keep old state for storage
+    let oldState = springs.join('') + "|" + nums.join(',');
 
     // we are a '?', so try filling it with a '.' and a '#'
     springs[0] = '.';
     count += fillRow([...springs], [...nums]);
 
     springs[0] = '#';
-    return count + fillRow(springs, nums);
+    count += fillRow(springs, nums);
+
+    lookupTable[oldState] = count;
+    return count;
 }
